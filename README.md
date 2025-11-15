@@ -12,7 +12,7 @@ Un'applicazione web Python che genera schede di lezione strutturate da video You
 
 ## 🚀 Tecnologie Utilizzate
 
-- **Python 3.12+**: Linguaggio di programmazione
+- **Python 3.8+**: Linguaggio di programmazione
 - **Streamlit**: Framework web per l'interfaccia utente
 - **youtube-transcript-api**: Libreria per estrarre trascrizioni da YouTube
 

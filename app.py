@@ -32,7 +32,7 @@ def extract_video_id(url):
     """
     # Pattern for various YouTube URL formats
     patterns = [
-        r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})',
+        r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?(?:.*&)?v=([a-zA-Z0-9_-]{11})',
         r'(?:https?:\/\/)?(?:www\.)?youtu\.be\/([a-zA-Z0-9_-]{11})',
         r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11})',
         r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/v\/([a-zA-Z0-9_-]{11})',
@@ -63,11 +63,8 @@ def get_transcript(video_id):
         Exception: If transcript is not available or video is invalid
     """
     try:
-        # Create an instance of the API
-        api = YouTubeTranscriptApi()
-        
-        # Try to get transcript list
-        transcript_list = api.list(video_id)
+        # Try to get transcript list using static method
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
         
         # Try Italian first, then English as fallback
         try:
@@ -78,13 +75,14 @@ def get_transcript(video_id):
                 # Get the first available transcript
                 transcript = next(iter(transcript_list))
             except StopIteration:
-                raise NoTranscriptFound(video_id, ['it', 'en'], transcript_list)
+                # No transcripts available at all
+                raise NoTranscriptFound(video_id, [], transcript_list)
         
         # Fetch the transcript
         transcript_data = transcript.fetch()
         
-        # Concatenate all text segments
-        full_text = " ".join([entry.text for entry in transcript_data])
+        # Concatenate all text segments (transcript entries are dictionaries)
+        full_text = " ".join([entry['text'] for entry in transcript_data])
         
         return full_text
         
@@ -94,8 +92,6 @@ def get_transcript(video_id):
         raise Exception("Nessuna trascrizione trovata per questo video.")
     except VideoUnavailable:
         raise Exception("Video non disponibile o ID non valido.")
-    except Exception as e:
-        raise Exception(f"Errore nel recupero della trascrizione: {str(e)}")
 
 
 def generate_lesson_from_text(transcript_text):
@@ -121,9 +117,22 @@ def generate_lesson_from_text(transcript_text):
     # For MVP, we'll create a basic structure
     # In production, this would call an LLM API (OpenAI, Anthropic, etc.)
     
+    # Helper function to escape markdown special characters
+    def escape_markdown(text):
+        """Escape markdown special characters to prevent formatting issues."""
+        # Escape common markdown special characters
+        special_chars = ['\\', '`', '*', '_', '{', '}', '[', ']', '(', ')', '#', '+', '-', '.', '!', '|']
+        for char in special_chars:
+            text = text.replace(char, '\\' + char)
+        return text
+    
     # Basic analysis of the transcript
     word_count = len(transcript_text.split())
     preview = transcript_text[:500] + "..." if len(transcript_text) > 500 else transcript_text
+    
+    # Escape markdown characters in preview and full transcript
+    preview_escaped = escape_markdown(preview)
+    transcript_escaped = escape_markdown(transcript_text)
     
     # Generate a structured lesson card
     lesson_card = f"""# 📚 Scheda di Lezione
@@ -133,7 +142,7 @@ def generate_lesson_from_text(transcript_text):
 - **Lingua**: Italiano/Inglese
 
 ## 📝 Anteprima Trascrizione
-{preview}
+{preview_escaped}
 
 ## 🎯 Obiettivi della Lezione
 *Questa sezione conterrà gli obiettivi principali della lezione una volta integrata l'elaborazione AI.*
@@ -185,7 +194,7 @@ Il modello AI analizzerà la trascrizione completa e genererà automaticamente:
 <details>
 <summary>Clicca per visualizzare la trascrizione completa</summary>
 
-{transcript_text}
+{transcript_escaped}
 
 </details>
 """
@@ -296,15 +305,11 @@ def main():
     
     # Footer
     st.markdown("---")
-    st.markdown("""
-    <div style='text-align: center; color: #666;'>
-        <p>📚 Lezioni-da-YouTube - MVP v1.0</p>
-        <p style='font-size: 0.8em;'>
-            Creato con Streamlit 🎈 | 
-            Trascrizioni da YouTube Transcript API 📝
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Use columns for centering without unsafe_allow_html
+    _, col, _ = st.columns([1, 2, 1])
+    with col:
+        st.markdown("**📚 Lezioni-da-YouTube - MVP v1.0**")
+        st.caption("Creato con Streamlit 🎈 | Trascrizioni da YouTube Transcript API 📝")
 
 
 if __name__ == "__main__":
