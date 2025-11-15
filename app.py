@@ -63,8 +63,11 @@ def get_transcript(video_id):
         Exception: If transcript is not available or video is invalid
     """
     try:
-        # Try to get transcript list using static method
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        # Create an instance of the API
+        api = YouTubeTranscriptApi()
+        
+        # Try to get transcript list
+        transcript_list = api.list(video_id)
         
         # Try Italian first, then English as fallback
         try:
